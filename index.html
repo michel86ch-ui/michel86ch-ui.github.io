@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HBS Werkzeuge</title>
+<style>
+  :root{
+    --bg:#10151d; --panel:#161d28; --line:#2a3442;
+    --txt:#dde4ee; --dim:#7d8aa0; --amber:#ffb000; --amber2:#cc8d00;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--bg); color:var(--txt); min-height:100vh;
+    font:15px/1.5 "Segoe UI", system-ui, sans-serif;
+    display:flex; flex-direction:column; align-items:center;
+  }
+  header{
+    width:100%; padding:2.2rem 1.5rem 1.4rem; text-align:center;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,#131a25,var(--bg));
+  }
+  h1{font-size:1.55rem; letter-spacing:.04em;}
+  h1 .amber{color:var(--amber);}
+  header p{color:var(--dim); margin-top:.35rem; font-size:.9rem;}
+  main{
+    width:100%; max-width:980px; padding:2rem 1.2rem 3rem;
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1.1rem;
+  }
+  a.card{
+    display:block; background:var(--panel); border:1px solid var(--line);
+    border-radius:10px; padding:1.3rem 1.4rem 1.2rem; text-decoration:none;
+    color:var(--txt); transition:transform .12s, border-color .12s, box-shadow .12s;
+    position:relative; overflow:hidden;
+  }
+  a.card::before{
+    content:""; position:absolute; left:0; top:0; bottom:0; width:4px;
+    background:var(--amber);
+  }
+  a.card:hover{
+    transform:translateY(-3px); border-color:var(--amber2);
+    box-shadow:0 6px 22px rgba(0,0,0,.45);
+  }
+  .icon{font-size:1.7rem; margin-bottom:.5rem;}
+  .card h2{font-size:1.05rem; margin-bottom:.3rem; letter-spacing:.02em;}
+  .card p{color:var(--dim); font-size:.85rem;}
+  .tag{
+    display:inline-block; margin-top:.7rem; font-size:.7rem; letter-spacing:.06em;
+    color:var(--amber); border:1px solid var(--amber2); border-radius:999px;
+    padding:.12rem .55rem; text-transform:uppercase;
+  }
+  footer{
+    margin-top:auto; padding:1rem; color:var(--dim); font-size:.75rem;
+    border-top:1px solid var(--line); width:100%; text-align:center;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>HBS <span class="amber">Werkzeuge</span></h1>
+  <p>Hilfsmittel für Niagara 4 &amp; Gebäudeautomation · Michel</p>
+</header>
+
+<main>
+  <a class="card" href="https://michel86ch-ui.github.io/n4-punktimport/">
+    <div class="icon">🤖</div>
+    <h2>N4 Punktimport</h2>
+    <p>PointCheckout-Excel oder Niagara-CSV laden, Punkte vorbereiten und per Robot-Program in die Station importieren – inkl. Panelbus-Hardware-Punkten.</p>
+    <span class="tag">Niagara 4</span>
+  </a>
+
+  <a class="card" href="https://michel86ch-ui.github.io/n4-punktimport/anleitung.html">
+    <div class="icon">📖</div>
+    <h2>Punktimport-Anleitung</h2>
+    <p>Schritt-für-Schritt: Robot einrichten, CSV in die Station bringen, Fehlerbehebung und Referenz zum Typ-Mapping.</p>
+    <span class="tag">Doku</span>
+  </a>
+
+  <a class="card" href="https://michel86ch-ui.github.io/mollier-diagramm/">
+    <div class="icon">💧</div>
+    <h2>Mollier-Diagramm</h2>
+    <p>h-x-Diagramm für feuchte Luft – Zustandspunkte, Prozesse und Kennwerte für die Lüftungstechnik direkt im Browser.</p>
+    <span class="tag">HLK</span>
+  </a>
+</main>
+
+<footer>
+  Läuft komplett im Browser · gehostet auf GitHub Pages
+</footer>
+
+</body>
+</html>
