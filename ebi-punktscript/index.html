@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EBI Punkt-Script Generator</title>
+<style>
+  :root {
+    --bg: #f4f6f8;
+    --panel: #ffffff;
+    --border: #d5dbe1;
+    --text: #1e2733;
+    --muted: #62707f;
+    --accent: #c8102e;       /* Honeywell-Rot */
+    --accent-hover: #9c0c24;
+    --blue: #1565c0;
+    --green: #2e7d32;
+    --orange: #b26a00;
+    --code-bg: #1e2733;
+    --code-text: #e6edf3;
+    --input-bg: #ffffff;
+    --hover: #f0f3f6;
+    --aktiv-bg: #fdeef1;
+    --block-bg: #fbfcfd;
+    --focus: rgba(200, 16, 46, .25);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12171d;
+      --panel: #1a2129;
+      --border: #35404c;
+      --text: #e4eaf0;
+      --muted: #96a4b3;
+      --accent: #f0526a;
+      --accent-hover: #ff7387;
+      --blue: #6aa9f0;
+      --green: #69c47a;
+      --orange: #e0a24a;
+      --code-bg: #10151b;
+      --code-text: #e6edf3;
+      --input-bg: #12171d;
+      --hover: #242e39;
+      --aktiv-bg: #3c1d26;
+      --block-bg: #1f2731;
+      --focus: rgba(240, 82, 106, .35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12171d;
+    --panel: #1a2129;
+    --border: #35404c;
+    --text: #e4eaf0;
+    --muted: #96a4b3;
+    --accent: #f0526a;
+    --accent-hover: #ff7387;
+    --blue: #6aa9f0;
+    --green: #69c47a;
+    --orange: #e0a24a;
+    --code-bg: #10151b;
+    --code-text: #e6edf3;
+    --input-bg: #12171d;
+    --hover: #242e39;
+    --aktiv-bg: #3c1d26;
+    --block-bg: #1f2731;
+    --focus: rgba(240, 82, 106, .35);
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f6f8;
+    --panel: #ffffff;
+    --border: #d5dbe1;
+    --text: #1e2733;
+    --muted: #62707f;
+    --accent: #c8102e;
+    --accent-hover: #9c0c24;
+    --blue: #1565c0;
+    --green: #2e7d32;
+    --orange: #b26a00;
+    --code-bg: #1e2733;
+    --code-text: #e6edf3;
+    --input-bg: #ffffff;
+    --hover: #f0f3f6;
+    --aktiv-bg: #fdeef1;
+    --block-bg: #fbfcfd;
+    --focus: rgba(200, 16, 46, .25);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.45 "Segoe UI", Arial, sans-serif;
+  }
+  header {
+    background: var(--panel); border-bottom: 3px solid var(--accent);
+    padding: 10px 18px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  header h1 { font-size: 18px; margin: 0; }
+  header .sub { color: var(--muted); font-size: 12px; }
+  header .spacer { flex: 1; }
+  main {
+    display: grid; grid-template-columns: 260px minmax(420px, 1fr) minmax(380px, 42%);
+    gap: 12px; padding: 12px 18px; align-items: start;
+  }
+  @media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
+  .panel {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px;
+  }
+  .panel h2 {
+    font-size: 13px; text-transform: uppercase; letter-spacing: .5px;
+    color: var(--muted); margin: 0 0 10px;
+  }
+  button {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 6px;
+    padding: 6px 11px; font: inherit; cursor: pointer; color: var(--text);
+  }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary:hover { background: var(--accent-hover); color: #fff; }
+  button.small { padding: 3px 8px; font-size: 12px; }
+  button.icon { padding: 3px 7px; font-size: 12px; line-height: 1; }
+  input[type=text], input[type=number], select, textarea {
+    width: 100%; border: 1px solid var(--border); border-radius: 5px;
+    padding: 5px 7px; font: inherit; background: var(--input-bg); color: var(--text);
+  }
+  textarea { resize: vertical; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--focus); border-color: var(--accent); }
+  label.f { display: block; font-size: 11.5px; color: var(--muted); margin-bottom: 2px; }
+  .row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .row > div { flex: 1; min-width: 0; }
+  .row > div.w60 { flex: 0 0 60px; }
+  .row > div.w90 { flex: 0 0 90px; }
+  .row > div.w120 { flex: 0 0 120px; }
+
+  /* Script-Liste links */
+  #scriptListe { list-style: none; margin: 0 0 10px; padding: 0; max-height: 46vh; overflow: auto; }
+  #scriptListe li {
+    padding: 6px 8px; border: 1px solid transparent; border-radius: 6px;
+    cursor: pointer; display: flex; align-items: center; gap: 6px;
+  }
+  #scriptListe li:hover { background: var(--hover); }
+  #scriptListe li.aktiv { background: var(--aktiv-bg); border-color: var(--accent); }
+  #scriptListe li .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #scriptListe li .per { color: var(--muted); font-size: 11.5px; }
+
+  /* Blöcke */
+  .block {
+    border: 1px solid var(--border); border-left: 4px solid var(--blue);
+    border-radius: 6px; padding: 10px; margin-bottom: 10px; background: var(--block-bg);
+  }
+  .block.typ-verteiler { border-left-color: var(--green); }
+  .block.typ-anforderung { border-left-color: var(--orange); }
+  .block.typ-freitext { border-left-color: var(--muted); }
+  .block .kopf { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .block .kopf .titel { font-weight: 600; font-size: 13px; flex: 1; }
+  .bed { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .bed input, .bed select { padding: 4px 6px; font-size: 13px; }
+  .chk { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
+  .chk input { width: auto; }
+
+  /* Vorschau */
+  #vorschau {
+    background: var(--code-bg); color: var(--code-text); border-radius: 8px;
+    padding: 12px; font: 12.5px/1.5 Consolas, "Courier New", monospace;
+    white-space: pre; overflow: auto; min-height: 300px; max-height: 68vh;
+  }
+  #vorschau .cmt { color: #7ec98f; }
+  #vorschau .kw { color: #7aa7ff; }
+  #vorschau .str { color: #e8c07a; }
+  .hinweis {
+    font-size: 12px; color: var(--muted); background: var(--hover);
+    border-radius: 6px; padding: 8px 10px; margin-top: 10px;
+  }
+  .hinweis b { color: var(--text); }
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .kopieren-ok { color: var(--green); font-size: 12px; }
+  details.hilfe { margin-top: 10px; font-size: 12.5px; }
+  details.hilfe summary { cursor: pointer; color: var(--muted); }
+  details.hilfe table { border-collapse: collapse; margin-top: 6px; width: 100%; }
+  details.hilfe td, details.hilfe th {
+    border: 1px solid var(--border); padding: 3px 7px; text-align: left; font-size: 12px;
+  }
+  details.hilfe code { background: var(--hover); padding: 0 3px; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>EBI Punkt-Script Generator</h1>
+  <span class="sub">Periodische Scripts · BACnet ⇄ Excel5000 (C-Bus)</span>
+  <span class="spacer"></span>
+  <button id="btnProjektExport" title="Alle Scripts als JSON-Projektdatei sichern">Projekt speichern (JSON)</button>
+  <button id="btnProjektImport">Projekt laden</button>
+  <input type="file" id="dateiProjekt" accept=".json" style="display:none">
+  <button id="btnCsvExport" title="Alle Scripts als CSV (Excel-Doku-Schema)">Doku-Export (CSV)</button>
+</header>
+
+<main>
+  <!-- Linke Spalte: Scriptverwaltung -->
+  <div class="panel">
+    <h2>Scripts</h2>
+    <ul id="scriptListe"></ul>
+    <div class="toolbar">
+      <button class="primary" id="btnScriptNeu">+ Script</button>
+      <button id="btnScriptKopie" title="Aktives Script duplizieren">Duplizieren</button>
+      <button id="btnScriptLoeschen">Löschen</button>
+    </div>
+    <div class="hinweis">
+      Alles wird automatisch im Browser gespeichert (localStorage).
+      Für die Ablage: <b>Projekt speichern (JSON)</b>.
+    </div>
+  </div>
+
+  <!-- Mittlere Spalte: Editor -->
+  <div class="panel" id="editorPanel">
+    <h2>Script bearbeiten</h2>
+
+    <div class="row">
+      <div><label class="f">Scriptname (wie in EBI)</label>
+        <input type="text" id="eName" placeholder="z.B. L02 Feuchteanforderung"></div>
+      <div class="w90"><label class="f">Periode</label>
+        <input type="number" id="ePeriode" min="1" value="5"></div>
+      <div class="w120"><label class="f">Einheit</label>
+        <select id="eEinheit">
+          <option>Minuten</option><option>Sekunden</option><option>Stunden</option>
+        </select></div>
+    </div>
+    <div class="row">
+      <div><label class="f">Ersteller</label>
+        <input type="text" id="eErsteller" placeholder="michel schneider"></div>
+      <div><label class="f">Beschreibung (Kommentar im Script)</label>
+        <input type="text" id="eBeschreibung" placeholder="z.B. sollwert anforderung von den räumen für die L02"></div>
+    </div>
+    <div class="row">
+      <div><label class="f">Erklärung (nur für Doku / CSV-Export, nicht im Script)</label>
+        <input type="text" id="eErklaerung" placeholder="z.B. C302 > C402, da BACnet auf C-Bus nicht stabil läuft"></div>
+    </div>
+
+    <div id="bloecke"></div>
+
+    <div class="toolbar">
+      <button id="btnBlockUebergabe">+ Wertübergabe (1 → 1)</button>
+      <button id="btnBlockVerteiler">+ Verteiler (1 → n)</button>
+      <button id="btnBlockAnforderung">+ Anforderung (if / or)</button>
+      <button id="btnBlockFreitext">+ Freitext</button>
+    </div>
+
+    <details class="hilfe">
+      <summary>Properties-Spickzettel (BACnet / C-Bus)</summary>
+      <table>
+        <tr><th>System</th><th>Properties</th></tr>
+        <tr><td>BACnet</td>
+            <td><code>.PresentValue</code></td></tr>
+        <tr><td>C-Bus (Excel5000)</td>
+            <td><code>.PointValue</code> (analog), <code>.PointState/ORDN</code> (binär lesen),
+                <code>.PointState</code> (binär schreiben), <code>.ModeState</code> (Hand=1/Auto)</td></tr>
+      </table>
+      <p>Das System wird pro Punkt explizit angewählt – das Property-Dropdown
+      zeigt dann nur die dort zulässigen Properties. Punktnamen sind auf jeder
+      Anlage anders benannt, darum gibt es bewusst keine automatische Erkennung.
+      Über «eigene…» lassen sich trotzdem beliebige Properties eintragen.</p>
+      <p>Beim Schreiben auf einen C-Bus-Punkt zuerst <code>ModeState = 1</code> setzen
+      (Hand), sonst wird der Wert vom Controller wieder überschrieben – der
+      «ModeState-Guard» in der Wertübergabe macht genau das.</p>
+    </details>
+  </div>
+
+  <!-- Rechte Spalte: Vorschau -->
+  <div class="panel">
+    <h2>Script-Vorschau</h2>
+    <div class="toolbar">
+      <button class="primary" id="btnKopieren">In Zwischenablage kopieren</button>
+      <button id="btnTxt">Download .txt</button>
+      <span id="kopiertInfo" class="kopieren-ok" style="display:none">✓ kopiert</span>
+    </div>
+    <div id="vorschau"></div>
+    <div class="hinweis">
+      Script in EBI unter <b>Periodische Scripts</b> einfügen; Name, Periode und
+      Startzeit dort setzen. Erste Zeile <code>on error resume next</code> und
+      letzte Zeile <code>error clear</code> sind bereits enthalten.
+    </div>
+  </div>
+</main>
+
+<script>
+"use strict";
+
+/* ---------- Datenmodell ---------- */
+
+const SPEICHER_KEY = "ebi_punktscript_v1";
+
+const SYSTEME = { bacnet: "BACnet", cbus: "C-Bus" };
+const PROPS = {
+  bacnet: ["PresentValue"],
+  cbus: ["PointValue", "PointState/ORDN", "PointState", "ModeState"]
+};
+const OPS = ["=", "<>", ">", "<", ">=", "<="];
+
+function neueId() { return "s" + Math.random().toString(36).slice(2, 9); }
+
+function neuesScript(name) {
+  return {
+    id: neueId(),
+    name: name || "Neues Script",
+    periode: 5,
+    einheit: "Minuten",
+    ersteller: projekt && projekt.scripts.length
+      ? (aktives() ? aktives().ersteller : "") : "",
+    beschreibung: "",
+    erklaerung: "",
+    bloecke: []
+  };
+}
+
+function blockUebergabe() {
+  return { typ: "uebergabe", kommentar: "", quelle: "", quelleSys: "bacnet", quelleProp: "PresentValue",
+           ziel: "", zielSys: "cbus", zielProp: "PointValue", modeGuard: true };
+}
+function blockVerteiler() {
+  return { typ: "verteiler", kommentar: "", quelle: "", quelleSys: "bacnet", quelleProp: "PresentValue",
+           variable: "wert", ziele: "", zielSys: "cbus", zielProp: "PointValue", modeSetzen: false };
+}
+function blockAnforderung() {
+  return { typ: "anforderung", kommentar: "", verknuepfung: "or",
+           bedingungen: [ { punkt: "", sys: "cbus", prop: "PointState/ORDN", op: "=", wert: "1" } ],
+           ziel: "", zielSys: "cbus", zielProp: "PointState", wertWahr: "1", wertFalsch: "0", mitElse: true };
+}
+function blockFreitext() { return { typ: "freitext", code: "" }; }
+
+// Alte Speicherstände (ohne System-Feld) nachrüsten: System aus der Property ableiten
+function migriereProjekt(p) {
+  const sysVon = prop => prop === "PresentValue" ? "bacnet" : "cbus";
+  (p.scripts || []).forEach(s => (s.bloecke || []).forEach(b => {
+    if (b.typ === "uebergabe" || b.typ === "verteiler") {
+      if (!b.quelleSys) b.quelleSys = sysVon(b.quelleProp);
+      if (!b.zielSys) b.zielSys = sysVon(b.zielProp);
+    } else if (b.typ === "anforderung") {
+      (b.bedingungen || []).forEach(bd => { if (!bd.sys) bd.sys = sysVon(bd.prop); });
+      if (!b.zielSys) b.zielSys = sysVon(b.zielProp);
+    }
+  }));
+}
+
+let projekt = ladeProjekt();
+migriereProjekt(projekt);
+if (!projekt.scripts.length) {
+  const s = neuesScript("Beispiel Wertübergabe");
+  s.beschreibung = "sollwert anforderung von den räumen für die L02";
+  s.bloecke.push(Object.assign(blockUebergabe(), {
+    quelle: "2076_VG3_L02_B888_W4", ziel: "2076VG3L02B888W7"
+  }));
+  projekt.scripts.push(s);
+  projekt.aktivId = s.id;
+}
+
+function ladeProjekt() {
+  try {
+    const roh = localStorage.getItem(SPEICHER_KEY);
+    if (roh) { const p = JSON.parse(roh); if (p && Array.isArray(p.scripts)) return p; }
+  } catch (e) { /* defekter Speicher -> neu anfangen */ }
+  return { scripts: [], aktivId: null };
+}
+function speichere() {
+  try { localStorage.setItem(SPEICHER_KEY, JSON.stringify(projekt)); } catch (e) {}
+}
+function aktives() {
+  return projekt.scripts.find(s => s.id === projekt.aktivId) || projekt.scripts[0] || null;
+}
+
+/* ---------- Script-Generierung ---------- */
+
+function heuteDatum() {
+  const d = new Date();
+  return String(d.getDate()).padStart(2, "0") + "." +
+         String(d.getMonth() + 1).padStart(2, "0") + "." + d.getFullYear();
+}
+
+function pv(punkt, prop) {
+  return 'Server.ParamValue ("' + punkt + "." + prop + '")';
+}
+
+function generiereBlock(b) {
+  const z = [];
+  if (b.typ !== "freitext" && b.kommentar) z.push("'" + b.kommentar);
+
+  if (b.typ === "uebergabe") {
+    if (b.modeGuard && b.zielSys === "cbus" && b.ziel) {
+      z.push("if " + pv(b.ziel, "ModeState") + " <> 1 then");
+      z.push(pv(b.ziel, "ModeState") + " = 1");
+      z.push("end if");
+    }
+    if (b.ziel || b.quelle) {
+      z.push(pv(b.ziel || "ZIELPUNKT", b.zielProp) + " = " + pv(b.quelle || "QUELLPUNKT", b.quelleProp));
+    }
+
+  } else if (b.typ === "verteiler") {
+    const variable = (b.variable || "wert").replace(/\s+/g, "_");
+    const ziele = (b.ziele || "").split(/\r?\n/).map(t => t.trim()).filter(Boolean);
+    if (b.quelle) z.push(variable + " = " + pv(b.quelle, b.quelleProp));
+    if (b.modeSetzen && b.zielSys === "cbus") {
+      ziele.forEach(zp => z.push(pv(zp, "ModeState") + " = 1"));
+      if (ziele.length) z.push("");
+    }
+    ziele.forEach(zp => z.push(pv(zp, b.zielProp) + " = " + variable));
+
+  } else if (b.typ === "anforderung") {
+    const beds = b.bedingungen.filter(bd => bd.punkt);
+    if (beds.length && b.ziel) {
+      beds.forEach((bd, i) => {
+        const teil = pv(bd.punkt, bd.prop) + " " + bd.op + " " + bd.wert;
+        if (i === 0 && beds.length === 1) {
+          z.push("if " + teil + " then");
+        } else if (i === 0) {
+          z.push("if " + teil + " or _");
+        } else if (i < beds.length - 1) {
+          z.push("   " + teil + " or _");
+        } else {
+          z.push("   " + teil + " then");
+        }
+      });
+      if (b.verknuepfung === "and") {
+        for (let i = 0; i < z.length; i++) z[i] = z[i].replace(/ or _$/, " and _");
+      }
+      z.push(pv(b.ziel, b.zielProp) + " = " + b.wertWahr);
+      if (b.mitElse) {
+        z.push("else");
+        z.push(pv(b.ziel, b.zielProp) + " = " + b.wertFalsch);
+      }
+      z.push("end if");
+    }
+
+  } else if (b.typ === "freitext") {
+    if (b.code) z.push(b.code);
+  }
+  return z.join("\n");
+}
+
+function generiereScript(s) {
+  const teile = [];
+  teile.push("on error resume next");
+  const kopf = [];
+  if (s.ersteller) kopf.push("'erstellt am " + heuteDatum() + " von " + s.ersteller);
+  if (s.beschreibung) kopf.push("'" + s.beschreibung);
+  if (kopf.length) teile.push(kopf.join("\n"));
+  s.bloecke.forEach(b => {
+    const code = generiereBlock(b);
+    if (code) teile.push(code);
+  });
+  teile.push("error clear");
+  return teile.join("\n\n");
+}
+
+/* ---------- Rendering ---------- */
+
+const $ = id => document.getElementById(id);
+
+function escapeHtml(t) {
+  return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+                  .replace(/"/g, "&quot;");
+}
+
+function renderListe() {
+  const ul = $("scriptListe");
+  ul.innerHTML = "";
+  projekt.scripts.forEach(s => {
+    const li = document.createElement("li");
+    li.className = s.id === projekt.aktivId ? "aktiv" : "";
+    li.innerHTML = '<span class="nm">' + escapeHtml(s.name) + '</span>' +
+                   '<span class="per">' + s.periode + " " + escapeHtml(s.einheit.slice(0, 3)) + "</span>";
+    li.onclick = () => { projekt.aktivId = s.id; speichere(); renderAlles(); };
+    ul.appendChild(li);
+  });
+}
+
+function sysSelect(wert, onChange) {
+  const sel = document.createElement("select");
+  Object.keys(SYSTEME).forEach(k => {
+    const o = document.createElement("option");
+    o.value = k; o.textContent = SYSTEME[k];
+    sel.appendChild(o);
+  });
+  sel.value = wert;
+  sel.onchange = () => onChange(sel.value);
+  return sel;
+}
+
+// Systemwechsel: Property auf den Standard des neuen Systems umstellen
+// (eigene, frei eingetippte Properties bleiben stehen)
+function sysWechsel(objekt, sysKey, propKey, cbusStandard) {
+  return v => {
+    objekt[sysKey] = v;
+    const prop = objekt[propKey];
+    const alleStd = PROPS.bacnet.concat(PROPS.cbus);
+    if (PROPS[v].indexOf(prop) < 0 && alleStd.indexOf(prop) >= 0)
+      objekt[propKey] = (v === "bacnet") ? "PresentValue" : cbusStandard;
+    speichere(); renderEditor(); renderVorschau();
+  };
+}
+
+function propSelect(sys, wert, onChange) {
+  const liste = PROPS[sys] || PROPS.cbus;
+  const sel = document.createElement("select");
+  liste.forEach(p => {
+    const o = document.createElement("option");
+    o.value = p; o.textContent = p;
+    sel.appendChild(o);
+  });
+  const eigene = document.createElement("option");
+  eigene.value = "__eigene__"; eigene.textContent = "eigene…";
+  sel.appendChild(eigene);
+  if (liste.indexOf(wert) < 0) {
+    const o = document.createElement("option");
+    o.value = wert; o.textContent = wert; o.selected = true;
+    sel.insertBefore(o, eigene);
+  } else sel.value = wert;
+  sel.onchange = () => {
+    if (sel.value === "__eigene__") {
+      const neu = prompt("Property (z.B. AlarmState):", "");
+      if (neu) onChange(neu); else sel.value = wert;
+      renderEditor(); renderVorschau();
+    } else { onChange(sel.value); renderVorschau(); }
+  };
+  return sel;
+}
+
+function feld(labelText, element) {
+  const wrap = document.createElement("div");
+  const lab = document.createElement("label");
+  lab.className = "f"; lab.innerHTML = labelText;
+  wrap.appendChild(lab); wrap.appendChild(element);
+  return wrap;
+}
+
+function textInput(wert, placeholder, onInput) {
+  const inp = document.createElement("input");
+  inp.type = "text"; inp.value = wert || ""; inp.placeholder = placeholder || "";
+  inp.oninput = () => { onInput(inp.value); renderVorschau(); };
+  return inp;
+}
+
+function blockKopf(container, titel, s, idx) {
+  const kopf = document.createElement("div");
+  kopf.className = "kopf";
+  const t = document.createElement("span");
+  t.className = "titel"; t.textContent = titel;
+  kopf.appendChild(t);
+  const hoch = document.createElement("button");
+  hoch.className = "icon"; hoch.textContent = "▲"; hoch.title = "nach oben";
+  hoch.onclick = () => {
+    if (idx > 0) {
+      [s.bloecke[idx - 1], s.bloecke[idx]] = [s.bloecke[idx], s.bloecke[idx - 1]];
+      speichere(); renderEditor(); renderVorschau();
+    }
+  };
+  const runter = document.createElement("button");
+  runter.className = "icon"; runter.textContent = "▼"; runter.title = "nach unten";
+  runter.onclick = () => {
+    if (idx < s.bloecke.length - 1) {
+      [s.bloecke[idx + 1], s.bloecke[idx]] = [s.bloecke[idx], s.bloecke[idx + 1]];
+      speichere(); renderEditor(); renderVorschau();
+    }
+  };
+  const weg = document.createElement("button");
+  weg.className = "icon"; weg.textContent = "✕"; weg.title = "Block löschen";
+  weg.onclick = () => {
+    s.bloecke.splice(idx, 1);
+    speichere(); renderEditor(); renderVorschau();
+  };
+  kopf.appendChild(hoch); kopf.appendChild(runter); kopf.appendChild(weg);
+  container.appendChild(kopf);
+}
+
+function punktFeld(labelBasis, wert, onInput) {
+  return feld(labelBasis, textInput(wert, "Punktname", onInput));
+}
+
+function renderEditor() {
+  const s = aktives();
+  if (!s) return;
+  $("eName").value = s.name;
+  $("ePeriode").value = s.periode;
+  $("eEinheit").value = s.einheit;
+  $("eErsteller").value = s.ersteller;
+  $("eBeschreibung").value = s.beschreibung;
+  $("eErklaerung").value = s.erklaerung;
+
+  const wrap = $("bloecke");
+  wrap.innerHTML = "";
+
+  s.bloecke.forEach((b, idx) => {
+    const div = document.createElement("div");
+    div.className = "block typ-" + b.typ;
+
+    if (b.typ === "uebergabe") {
+      blockKopf(div, "Wertübergabe (1 → 1)", s, idx);
+      const r0 = document.createElement("div"); r0.className = "row";
+      r0.appendChild(feld("Kommentar (optional)", textInput(b.kommentar, "z.B. Aussentemperatur an L02", v => { b.kommentar = v; speichere(); })));
+      div.appendChild(r0);
+      const r1 = document.createElement("div"); r1.className = "row";
+      r1.appendChild(punktFeld("Quelle (lesen)", b.quelle, v => { b.quelle = v; speichere(); }));
+      const s1 = feld("System", sysSelect(b.quelleSys, sysWechsel(b, "quelleSys", "quelleProp", "PointValue")));
+      s1.className = "w90"; r1.appendChild(s1);
+      const p1 = feld("Property", propSelect(b.quelleSys, b.quelleProp, v => { b.quelleProp = v; speichere(); }));
+      p1.className = "w120"; r1.appendChild(p1);
+      div.appendChild(r1);
+      const r2 = document.createElement("div"); r2.className = "row";
+      r2.appendChild(punktFeld("Ziel (schreiben)", b.ziel, v => { b.ziel = v; speichere(); }));
+      const s2 = feld("System", sysSelect(b.zielSys, sysWechsel(b, "zielSys", "zielProp", "PointValue")));
+      s2.className = "w90"; r2.appendChild(s2);
+      const p2 = feld("Property", propSelect(b.zielSys, b.zielProp, v => { b.zielProp = v; speichere(); }));
+      p2.className = "w120"; r2.appendChild(p2);
+      div.appendChild(r2);
+      if (b.zielSys === "cbus") {
+        const chk = document.createElement("label"); chk.className = "chk";
+        const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = b.modeGuard;
+        cb.onchange = () => { b.modeGuard = cb.checked; speichere(); renderVorschau(); };
+        chk.appendChild(cb);
+        chk.appendChild(document.createTextNode(" ModeState-Guard: Ziel vor dem Schreiben auf Hand setzen (ModeState = 1)"));
+        div.appendChild(chk);
+      }
+
+    } else if (b.typ === "verteiler") {
+      blockKopf(div, "Verteiler (1 → n)", s, idx);
+      const r0 = document.createElement("div"); r0.className = "row";
+      r0.appendChild(feld("Kommentar (optional)", textInput(b.kommentar, "z.B. Aussentemperatur auf alle ERR verteilen", v => { b.kommentar = v; speichere(); })));
+      div.appendChild(r0);
+      const r1 = document.createElement("div"); r1.className = "row";
+      r1.appendChild(punktFeld("Quelle (lesen)", b.quelle, v => { b.quelle = v; speichere(); }));
+      const s1 = feld("System", sysSelect(b.quelleSys, sysWechsel(b, "quelleSys", "quelleProp", "PointValue")));
+      s1.className = "w90"; r1.appendChild(s1);
+      const p1 = feld("Property", propSelect(b.quelleSys, b.quelleProp, v => { b.quelleProp = v; speichere(); }));
+      p1.className = "w120"; r1.appendChild(p1);
+      const pV = feld("Variable", textInput(b.variable, "wert", v => { b.variable = v; speichere(); }));
+      pV.className = "w120"; r1.appendChild(pV);
+      div.appendChild(r1);
+      const ta = document.createElement("textarea");
+      ta.rows = 5; ta.value = b.ziele;
+      ta.placeholder = "Zielpunkte, einer pro Zeile\n2076VGXB800W3_314\n2076VGXB800W3_328\n…";
+      ta.oninput = () => { b.ziele = ta.value; speichere(); renderVorschau(); };
+      div.appendChild(feld("Zielpunkte (einer pro Zeile)", ta));
+      const r2 = document.createElement("div"); r2.className = "row";
+      const s2 = feld("Ziel-System", sysSelect(b.zielSys, sysWechsel(b, "zielSys", "zielProp", "PointValue")));
+      s2.className = "w90"; r2.appendChild(s2);
+      const p2 = feld("Ziel-Property", propSelect(b.zielSys, b.zielProp, v => { b.zielProp = v; speichere(); }));
+      p2.className = "w120"; r2.appendChild(p2);
+      if (b.zielSys === "cbus") {
+        const chkWrap = document.createElement("div");
+        const chk = document.createElement("label"); chk.className = "chk"; chk.style.marginTop = "18px";
+        const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = b.modeSetzen;
+        cb.onchange = () => { b.modeSetzen = cb.checked; speichere(); renderVorschau(); };
+        chk.appendChild(cb);
+        chk.appendChild(document.createTextNode(" vorab ModeState = 1 für alle Ziele"));
+        chkWrap.appendChild(chk); r2.appendChild(chkWrap);
+      }
+      div.appendChild(r2);
+
+    } else if (b.typ === "anforderung") {
+      blockKopf(div, "Anforderung (if / " + b.verknuepfung + ")", s, idx);
+      const r0 = document.createElement("div"); r0.className = "row";
+      r0.appendChild(feld("Kommentar (optional)", textInput(b.kommentar, "z.B. Anforderung K15", v => { b.kommentar = v; speichere(); })));
+      const pVer = document.createElement("select");
+      ["or", "and"].forEach(v => {
+        const o = document.createElement("option"); o.value = v; o.textContent = v.toUpperCase();
+        pVer.appendChild(o);
+      });
+      pVer.value = b.verknuepfung;
+      pVer.onchange = () => { b.verknuepfung = pVer.value; speichere(); renderEditor(); renderVorschau(); };
+      const pv2 = feld("Verknüpfung", pVer); pv2.className = "w90";
+      r0.appendChild(pv2);
+      div.appendChild(r0);
+
+      b.bedingungen.forEach((bd, bi) => {
+        const bz = document.createElement("div"); bz.className = "bed";
+        const inp = textInput(bd.punkt, "Punktname", v => { bd.punkt = v; speichere(); });
+        inp.style.flex = "2";
+        bz.appendChild(inp);
+        const selS = sysSelect(bd.sys, sysWechsel(bd, "sys", "prop", "PointState/ORDN"));
+        selS.style.flex = "0 0 84px";
+        bz.appendChild(selS);
+        const selP = propSelect(bd.sys, bd.prop, v => { bd.prop = v; speichere(); });
+        selP.style.flex = "0 0 130px";
+        bz.appendChild(selP);
+        const selO = document.createElement("select");
+        OPS.forEach(op => { const o = document.createElement("option"); o.value = op; o.textContent = op; selO.appendChild(o); });
+        selO.value = bd.op; selO.style.flex = "0 0 56px";
+        selO.onchange = () => { bd.op = selO.value; speichere(); renderVorschau(); };
+        bz.appendChild(selO);
+        const w = textInput(bd.wert, "Wert", v => { bd.wert = v; speichere(); });
+        w.style.flex = "0 0 64px";
+        bz.appendChild(w);
+        const weg = document.createElement("button");
+        weg.className = "icon"; weg.textContent = "✕"; weg.title = "Bedingung löschen";
+        weg.onclick = () => { b.bedingungen.splice(bi, 1); speichere(); renderEditor(); renderVorschau(); };
+        bz.appendChild(weg);
+        div.appendChild(bz);
+      });
+      const plus = document.createElement("button");
+      plus.className = "small"; plus.textContent = "+ Bedingung";
+      plus.onclick = () => {
+        b.bedingungen.push({ punkt: "", sys: "cbus", prop: "PointState/ORDN", op: "=", wert: "1" });
+        speichere(); renderEditor();
+      };
+      div.appendChild(plus);
+
+      const r2 = document.createElement("div"); r2.className = "row"; r2.style.marginTop = "8px";
+      r2.appendChild(punktFeld("Ziel (schreiben)", b.ziel, v => { b.ziel = v; speichere(); }));
+      const sZ = feld("System", sysSelect(b.zielSys, sysWechsel(b, "zielSys", "zielProp", "PointState")));
+      sZ.className = "w90"; r2.appendChild(sZ);
+      const p2 = feld("Property", propSelect(b.zielSys, b.zielProp, v => { b.zielProp = v; speichere(); }));
+      p2.className = "w120"; r2.appendChild(p2);
+      const pw = feld("Wert wenn wahr", textInput(b.wertWahr, "1", v => { b.wertWahr = v; speichere(); }));
+      pw.className = "w90"; r2.appendChild(pw);
+      const pf = feld("sonst", textInput(b.wertFalsch, "0", v => { b.wertFalsch = v; speichere(); }));
+      pf.className = "w60"; r2.appendChild(pf);
+      div.appendChild(r2);
+      const chk = document.createElement("label"); chk.className = "chk";
+      const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = b.mitElse;
+      cb.onchange = () => { b.mitElse = cb.checked; speichere(); renderVorschau(); };
+      chk.appendChild(cb);
+      chk.appendChild(document.createTextNode(" mit else-Zweig (sonst-Wert schreiben)"));
+      div.appendChild(chk);
+
+    } else if (b.typ === "freitext") {
+      blockKopf(div, "Freitext (eigener Code)", s, idx);
+      const ta = document.createElement("textarea");
+      ta.rows = 5; ta.value = b.code;
+      ta.placeholder = "eigener Scriptcode …";
+      ta.style.fontFamily = "Consolas, monospace";
+      ta.oninput = () => { b.code = ta.value; speichere(); renderVorschau(); };
+      div.appendChild(ta);
+    }
+
+    wrap.appendChild(div);
+  });
+}
+
+function renderVorschau() {
+  const s = aktives();
+  if (!s) { $("vorschau").textContent = ""; return; }
+  const code = generiereScript(s);
+  const html = escapeHtml(code)
+    .replace(/^('.*)$/gm, '<span class="cmt">$1</span>')
+    .replace(/&quot;([^&]*?)&quot;/g, '<span class="str">&quot;$1&quot;</span>')
+    .replace(/^(on error resume next|error clear|end if|else)$/gm, '<span class="kw">$1</span>')
+    .replace(/^(if )/gm, '<span class="kw">$1</span>');
+  $("vorschau").innerHTML = html;
+}
+
+function renderAlles() { renderListe(); renderEditor(); renderVorschau(); }
+
+/* ---------- Kopf-Felder ---------- */
+
+function bindeKopfFeld(id, key, istZahl) {
+  $(id).oninput = $(id).onchange = () => {
+    const s = aktives(); if (!s) return;
+    s[key] = istZahl ? (parseInt($(id).value, 10) || 1) : $(id).value;
+    speichere();
+    if (key === "name" || key === "periode" || key === "einheit") renderListe();
+    renderVorschau();
+  };
+}
+bindeKopfFeld("eName", "name");
+bindeKopfFeld("ePeriode", "periode", true);
+bindeKopfFeld("eEinheit", "einheit");
+bindeKopfFeld("eErsteller", "ersteller");
+bindeKopfFeld("eBeschreibung", "beschreibung");
+bindeKopfFeld("eErklaerung", "erklaerung");
+
+/* ---------- Buttons ---------- */
+
+$("btnScriptNeu").onclick = () => {
+  const s = neuesScript();
+  const alt = aktives();
+  if (alt) s.ersteller = alt.ersteller;
+  projekt.scripts.push(s);
+  projekt.aktivId = s.id;
+  speichere(); renderAlles();
+};
+$("btnScriptKopie").onclick = () => {
+  const s = aktives(); if (!s) return;
+  const kopie = JSON.parse(JSON.stringify(s));
+  kopie.id = neueId(); kopie.name = s.name + " (Kopie)";
+  projekt.scripts.push(kopie);
+  projekt.aktivId = kopie.id;
+  speichere(); renderAlles();
+};
+$("btnScriptLoeschen").onclick = () => {
+  const s = aktives(); if (!s) return;
+  if (!confirm('Script "' + s.name + '" löschen?')) return;
+  projekt.scripts = projekt.scripts.filter(x => x.id !== s.id);
+  if (!projekt.scripts.length) projekt.scripts.push(neuesScript());
+  projekt.aktivId = projekt.scripts[0].id;
+  speichere(); renderAlles();
+};
+
+function blockHinzu(fabrik) {
+  const s = aktives(); if (!s) return;
+  s.bloecke.push(fabrik());
+  speichere(); renderEditor(); renderVorschau();
+}
+$("btnBlockUebergabe").onclick = () => blockHinzu(blockUebergabe);
+$("btnBlockVerteiler").onclick = () => blockHinzu(blockVerteiler);
+$("btnBlockAnforderung").onclick = () => blockHinzu(blockAnforderung);
+$("btnBlockFreitext").onclick = () => blockHinzu(blockFreitext);
+
+$("btnKopieren").onclick = () => {
+  const s = aktives(); if (!s) return;
+  const code = generiereScript(s);
+  const zeigOk = () => {
+    $("kopiertInfo").style.display = "inline";
+    setTimeout(() => { $("kopiertInfo").style.display = "none"; }, 1500);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(code).then(zeigOk, () => fallbackKopie(code, zeigOk));
+  } else fallbackKopie(code, zeigOk);
+};
+function fallbackKopie(text, ok) {
+  const ta = document.createElement("textarea");
+  ta.value = text; document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand("copy"); ok(); } catch (e) {}
+  document.body.removeChild(ta);
+}
+
+function downloadDatei(name, inhalt, mime) {
+  const blob = new Blob([inhalt], { type: mime || "text/plain;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+$("btnTxt").onclick = () => {
+  const s = aktives(); if (!s) return;
+  const sicher = s.name.replace(/[^\wäöüÄÖÜß \-]/g, "_").trim() || "script";
+  downloadDatei(sicher + ".txt", generiereScript(s));
+};
+
+$("btnProjektExport").onclick = () => {
+  downloadDatei("ebi_punktscripts.json", JSON.stringify(projekt, null, 2), "application/json");
+};
+$("btnProjektImport").onclick = () => $("dateiProjekt").click();
+$("dateiProjekt").onchange = () => {
+  const f = $("dateiProjekt").files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const p = JSON.parse(r.result);
+      if (!p || !Array.isArray(p.scripts)) throw new Error("kein Projekt");
+      projekt = p;
+      if (!projekt.scripts.length) projekt.scripts.push(neuesScript());
+      if (!projekt.scripts.find(s => s.id === projekt.aktivId))
+        projekt.aktivId = projekt.scripts[0].id;
+      speichere(); renderAlles();
+    } catch (e) { alert("Datei konnte nicht gelesen werden: " + e.message); }
+  };
+  r.readAsText(f);
+  $("dateiProjekt").value = "";
+};
+
+$("btnCsvExport").onclick = () => {
+  // Schema wie Excel-Doku: ScriptName;Periode;Einheit;Script;Erklärung
+  const esc = t => '"' + String(t == null ? "" : t).replace(/"/g, '""') + '"';
+  const zeilen = ["ScriptName;Periode;Einheit;Script;Erklärung"];
+  projekt.scripts.forEach(s => {
+    zeilen.push([esc(s.name), s.periode, esc(s.einheit),
+                 esc(generiereScript(s)), esc(s.erklaerung)].join(";"));
+  });
+  downloadDatei("ebi_punktscripts.csv", "\uFEFF" + zeilen.join("\r\n"), "text/csv;charset=utf-8");
+};
+
+/* ---------- Start ---------- */
+speichere();
+renderAlles();
+</script>
+</body>
+</html>
