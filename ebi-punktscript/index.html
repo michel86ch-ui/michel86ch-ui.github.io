@@ -151,8 +151,9 @@
   .block.typ-freitext { border-left-color: var(--muted); }
   .block .kopf { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
   .block .kopf .titel { font-weight: 600; font-size: 13px; flex: 1; }
-  .bed { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .bed { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
   .bed input, .bed select { padding: 4px 6px; font-size: 13px; }
+  .bed input.bedKommentar { flex: 1 1 100%; font-size: 12px; color: var(--muted); }
   .chk { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
   .chk input { width: auto; }
 
@@ -248,10 +249,11 @@
       <table>
         <tr><th>System</th><th>Properties</th></tr>
         <tr><td>BACnet</td>
-            <td><code>.PresentValue</code></td></tr>
+            <td><code>.PresentValue</code> (Wert/schreiben), <code>.PresentValue/ORDN</code> (binär lesen)</td></tr>
         <tr><td>C-Bus (Excel5000)</td>
             <td><code>.PointValue</code> (analog), <code>.PointState/ORDN</code> (binär lesen),
-                <code>.PointState</code> (binär schreiben), <code>.ModeState</code> (Hand=1/Auto)</td></tr>
+                <code>.PointState</code> (binär schreiben), <code>.ModeState</code> (Hand=1/Auto,
+                lesen via <code>.ModeState/ORDN</code>)</td></tr>
       </table>
       <p>Das System wird pro Punkt explizit angewählt – das Property-Dropdown
       zeigt dann nur die dort zulässigen Properties. Punktnamen sind auf jeder
@@ -289,7 +291,7 @@ const SPEICHER_KEY = "ebi_punktscript_v1";
 
 const SYSTEME = { bacnet: "BACnet", cbus: "C-Bus" };
 const PROPS = {
-  bacnet: ["PresentValue"],
+  bacnet: ["PresentValue", "PresentValue/ORDN"],
   cbus: ["PointValue", "PointState/ORDN", "PointState", "ModeState"]
 };
 const OPS = ["=", "<>", ">", "<", ">=", "<="];
@@ -320,8 +322,9 @@ function blockVerteiler() {
 }
 function blockAnforderung() {
   return { typ: "anforderung", kommentar: "", verknuepfung: "or",
-           bedingungen: [ { punkt: "", sys: "cbus", prop: "PointState/ORDN", op: "=", wert: "1" } ],
-           ziel: "", zielSys: "cbus", zielProp: "PointState", wertWahr: "1", wertFalsch: "0", mitElse: true };
+           bedingungen: [ { punkt: "", sys: "cbus", prop: "PointState/ORDN", op: "=", wert: "1", kommentar: "" } ],
+           ziel: "", zielSys: "cbus", zielProp: "PointState", wertWahr: "1", wertFalsch: "0",
+           zielKommentar: "", mitElse: true, modeGuard: true };
 }
 function blockFreitext() { return { typ: "freitext", code: "" }; }
 
@@ -335,6 +338,8 @@ function migriereProjekt(p) {
     } else if (b.typ === "anforderung") {
       (b.bedingungen || []).forEach(bd => { if (!bd.sys) bd.sys = sysVon(bd.prop); });
       if (!b.zielSys) b.zielSys = sysVon(b.zielProp);
+      // Guard kam später dazu: bestehende Blöcke unverändert lassen
+      if (b.modeGuard === undefined) b.modeGuard = false;
     }
   }));
 }
@@ -383,7 +388,7 @@ function generiereBlock(b) {
 
   if (b.typ === "uebergabe") {
     if (b.modeGuard && b.zielSys === "cbus" && b.ziel) {
-      z.push("if " + pv(b.ziel, "ModeState") + " <> 1 then");
+      z.push("if " + pv(b.ziel, "ModeState/ORDN") + " <> 1 then");
       z.push(pv(b.ziel, "ModeState") + " = 1");
       z.push("end if");
     }
@@ -404,6 +409,12 @@ function generiereBlock(b) {
   } else if (b.typ === "anforderung") {
     const beds = b.bedingungen.filter(bd => bd.punkt);
     if (beds.length && b.ziel) {
+      if (b.modeGuard && b.zielSys === "cbus") {
+        z.push("if " + pv(b.ziel, "ModeState/ORDN") + " <> 1 then");
+        z.push(pv(b.ziel, "ModeState") + " = 1");
+        z.push("end if");
+        z.push("");
+      }
       beds.forEach((bd, i) => {
         const teil = pv(bd.punkt, bd.prop) + " " + bd.op + " " + bd.wert;
         if (i === 0 && beds.length === 1) {
@@ -415,11 +426,13 @@ function generiereBlock(b) {
         } else {
           z.push("   " + teil + " then");
         }
+        if (bd.kommentar) z.push("'(" + bd.kommentar + ")");
       });
       if (b.verknuepfung === "and") {
         for (let i = 0; i < z.length; i++) z[i] = z[i].replace(/ or _$/, " and _");
       }
       z.push(pv(b.ziel, b.zielProp) + " = " + b.wertWahr);
+      if (b.zielKommentar) z.push("'(" + b.zielKommentar + ")");
       if (b.mitElse) {
         z.push("else");
         z.push(pv(b.ziel, b.zielProp) + " = " + b.wertFalsch);
@@ -484,16 +497,19 @@ function sysSelect(wert, onChange) {
 
 // Systemwechsel: Property auf den Standard des neuen Systems umstellen
 // (eigene, frei eingetippte Properties bleiben stehen)
-function sysWechsel(objekt, sysKey, propKey, cbusStandard) {
+function sysWechsel(objekt, sysKey, propKey, standards) {
   return v => {
     objekt[sysKey] = v;
     const prop = objekt[propKey];
     const alleStd = PROPS.bacnet.concat(PROPS.cbus);
     if (PROPS[v].indexOf(prop) < 0 && alleStd.indexOf(prop) >= 0)
-      objekt[propKey] = (v === "bacnet") ? "PresentValue" : cbusStandard;
+      objekt[propKey] = standards[v];
     speichere(); renderEditor(); renderVorschau();
   };
 }
+const STD_WERT = { bacnet: "PresentValue", cbus: "PointValue" };
+const STD_BIN_LESEN = { bacnet: "PresentValue/ORDN", cbus: "PointState/ORDN" };
+const STD_BIN_SCHREIBEN = { bacnet: "PresentValue", cbus: "PointState" };
 
 function propSelect(sys, wert, onChange) {
   const liste = PROPS[sys] || PROPS.cbus;
@@ -596,14 +612,14 @@ function renderEditor() {
       div.appendChild(r0);
       const r1 = document.createElement("div"); r1.className = "row";
       r1.appendChild(punktFeld("Quelle (lesen)", b.quelle, v => { b.quelle = v; speichere(); }));
-      const s1 = feld("System", sysSelect(b.quelleSys, sysWechsel(b, "quelleSys", "quelleProp", "PointValue")));
+      const s1 = feld("System", sysSelect(b.quelleSys, sysWechsel(b, "quelleSys", "quelleProp", STD_WERT)));
       s1.className = "w90"; r1.appendChild(s1);
       const p1 = feld("Property", propSelect(b.quelleSys, b.quelleProp, v => { b.quelleProp = v; speichere(); }));
       p1.className = "w120"; r1.appendChild(p1);
       div.appendChild(r1);
       const r2 = document.createElement("div"); r2.className = "row";
       r2.appendChild(punktFeld("Ziel (schreiben)", b.ziel, v => { b.ziel = v; speichere(); }));
-      const s2 = feld("System", sysSelect(b.zielSys, sysWechsel(b, "zielSys", "zielProp", "PointValue")));
+      const s2 = feld("System", sysSelect(b.zielSys, sysWechsel(b, "zielSys", "zielProp", STD_WERT)));
       s2.className = "w90"; r2.appendChild(s2);
       const p2 = feld("Property", propSelect(b.zielSys, b.zielProp, v => { b.zielProp = v; speichere(); }));
       p2.className = "w120"; r2.appendChild(p2);
@@ -624,7 +640,7 @@ function renderEditor() {
       div.appendChild(r0);
       const r1 = document.createElement("div"); r1.className = "row";
       r1.appendChild(punktFeld("Quelle (lesen)", b.quelle, v => { b.quelle = v; speichere(); }));
-      const s1 = feld("System", sysSelect(b.quelleSys, sysWechsel(b, "quelleSys", "quelleProp", "PointValue")));
+      const s1 = feld("System", sysSelect(b.quelleSys, sysWechsel(b, "quelleSys", "quelleProp", STD_WERT)));
       s1.className = "w90"; r1.appendChild(s1);
       const p1 = feld("Property", propSelect(b.quelleSys, b.quelleProp, v => { b.quelleProp = v; speichere(); }));
       p1.className = "w120"; r1.appendChild(p1);
@@ -637,7 +653,7 @@ function renderEditor() {
       ta.oninput = () => { b.ziele = ta.value; speichere(); renderVorschau(); };
       div.appendChild(feld("Zielpunkte (einer pro Zeile)", ta));
       const r2 = document.createElement("div"); r2.className = "row";
-      const s2 = feld("Ziel-System", sysSelect(b.zielSys, sysWechsel(b, "zielSys", "zielProp", "PointValue")));
+      const s2 = feld("Ziel-System", sysSelect(b.zielSys, sysWechsel(b, "zielSys", "zielProp", STD_WERT)));
       s2.className = "w90"; r2.appendChild(s2);
       const p2 = feld("Ziel-Property", propSelect(b.zielSys, b.zielProp, v => { b.zielProp = v; speichere(); }));
       p2.className = "w120"; r2.appendChild(p2);
@@ -672,7 +688,7 @@ function renderEditor() {
         const inp = textInput(bd.punkt, "Punktname", v => { bd.punkt = v; speichere(); });
         inp.style.flex = "2";
         bz.appendChild(inp);
-        const selS = sysSelect(bd.sys, sysWechsel(bd, "sys", "prop", "PointState/ORDN"));
+        const selS = sysSelect(bd.sys, sysWechsel(bd, "sys", "prop", STD_BIN_LESEN));
         selS.style.flex = "0 0 84px";
         bz.appendChild(selS);
         const selP = propSelect(bd.sys, bd.prop, v => { bd.prop = v; speichere(); });
@@ -690,19 +706,22 @@ function renderEditor() {
         weg.className = "icon"; weg.textContent = "✕"; weg.title = "Bedingung löschen";
         weg.onclick = () => { b.bedingungen.splice(bi, 1); speichere(); renderEditor(); renderVorschau(); };
         bz.appendChild(weg);
+        const kom = textInput(bd.kommentar || "", "'(Kommentar zu dieser Bedingung – optional, z.B. Schaltbefehl vom ULK 5)", v => { bd.kommentar = v; speichere(); });
+        kom.className = "bedKommentar";
+        bz.appendChild(kom);
         div.appendChild(bz);
       });
       const plus = document.createElement("button");
       plus.className = "small"; plus.textContent = "+ Bedingung";
       plus.onclick = () => {
-        b.bedingungen.push({ punkt: "", sys: "cbus", prop: "PointState/ORDN", op: "=", wert: "1" });
+        b.bedingungen.push({ punkt: "", sys: "cbus", prop: "PointState/ORDN", op: "=", wert: "1", kommentar: "" });
         speichere(); renderEditor();
       };
       div.appendChild(plus);
 
       const r2 = document.createElement("div"); r2.className = "row"; r2.style.marginTop = "8px";
       r2.appendChild(punktFeld("Ziel (schreiben)", b.ziel, v => { b.ziel = v; speichere(); }));
-      const sZ = feld("System", sysSelect(b.zielSys, sysWechsel(b, "zielSys", "zielProp", "PointState")));
+      const sZ = feld("System", sysSelect(b.zielSys, sysWechsel(b, "zielSys", "zielProp", STD_BIN_SCHREIBEN)));
       sZ.className = "w90"; r2.appendChild(sZ);
       const p2 = feld("Property", propSelect(b.zielSys, b.zielProp, v => { b.zielProp = v; speichere(); }));
       p2.className = "w120"; r2.appendChild(p2);
@@ -711,12 +730,24 @@ function renderEditor() {
       const pf = feld("sonst", textInput(b.wertFalsch, "0", v => { b.wertFalsch = v; speichere(); }));
       pf.className = "w60"; r2.appendChild(pf);
       div.appendChild(r2);
+      const r3 = document.createElement("div"); r3.className = "row";
+      r3.appendChild(feld("Kommentar zur Zielzeile (optional)",
+        textInput(b.zielKommentar || "", "z.B. Kälteanforderung, x15000 cpu306", v => { b.zielKommentar = v; speichere(); })));
+      div.appendChild(r3);
       const chk = document.createElement("label"); chk.className = "chk";
       const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = b.mitElse;
       cb.onchange = () => { b.mitElse = cb.checked; speichere(); renderVorschau(); };
       chk.appendChild(cb);
       chk.appendChild(document.createTextNode(" mit else-Zweig (sonst-Wert schreiben)"));
       div.appendChild(chk);
+      if (b.zielSys === "cbus") {
+        const chkG = document.createElement("label"); chkG.className = "chk";
+        const cbG = document.createElement("input"); cbG.type = "checkbox"; cbG.checked = b.modeGuard;
+        cbG.onchange = () => { b.modeGuard = cbG.checked; speichere(); renderVorschau(); };
+        chkG.appendChild(cbG);
+        chkG.appendChild(document.createTextNode(" ModeState-Guard: Ziel vorab auf Hand setzen (ModeState = 1)"));
+        div.appendChild(chkG);
+      }
 
     } else if (b.typ === "freitext") {
       blockKopf(div, "Freitext (eigener Code)", s, idx);
