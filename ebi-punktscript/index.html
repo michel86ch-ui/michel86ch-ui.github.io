@@ -276,8 +276,8 @@
     <div id="vorschau"></div>
     <div class="hinweis">
       Script in EBI unter <b>Periodische Scripts</b> einfügen; Name, Periode und
-      Startzeit dort setzen. Erste Zeile <code>on error resume next</code> und
-      letzte Zeile <code>error clear</code> sind bereits enthalten.
+      Startzeit dort setzen. Die erste Zeile <code>on error resume next</code>
+      ist bereits enthalten.
     </div>
   </div>
 </main>
@@ -457,7 +457,6 @@ function generiereScript(s) {
     const code = generiereBlock(b);
     if (code) teile.push(code);
   });
-  teile.push("error clear");
   return teile.join("\n\n");
 }
 
@@ -770,7 +769,7 @@ function renderVorschau() {
   const html = escapeHtml(code)
     .replace(/^('.*)$/gm, '<span class="cmt">$1</span>')
     .replace(/&quot;([^&]*?)&quot;/g, '<span class="str">&quot;$1&quot;</span>')
-    .replace(/^(on error resume next|error clear|end if|else)$/gm, '<span class="kw">$1</span>')
+    .replace(/^(on error resume next|end if|else)$/gm, '<span class="kw">$1</span>')
     .replace(/^(if )/gm, '<span class="kw">$1</span>');
   $("vorschau").innerHTML = html;
 }
